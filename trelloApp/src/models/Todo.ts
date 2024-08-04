@@ -3,5 +3,5 @@ export interface Todo {
   name: string | null
   description: string | null
   status: boolean | undefined
-  complitionDate: Date | null
+  complitionDate: Date
 }

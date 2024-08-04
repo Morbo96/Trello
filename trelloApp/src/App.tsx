@@ -7,46 +7,32 @@ import { Card } from '@consta/uikit/Card'
 import { TextField } from '@consta/uikit/TextField'
 import { DatePicker } from '@consta/uikit/DatePicker'
 import { Checkbox } from '@consta/uikit/Checkbox'
-// import { getRandomColor } from './helpers/getRandomColor'
 import { Button } from '@consta/uikit/Button'
 import { IconClose } from '@consta/icons/IconClose'
+import { IconHamburger } from '@consta/icons/IconHamburger'
 import { Todo } from './models/Todo'
+import { JSONData, normalizeDate } from './helpers/normalizeDate'
 
 function App() {
-  const [columns, setColumns] = useState<CanvasColumn[]>(
-    [
-      {
-        id: 1,
-        name: 'Запланировано',
-        color: '#6cd4ac',
-        order: 1,
-        todos: [
-          {id: 1, name: '1', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-          {id: 2, name: '2', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-          {id: 3, name: '3', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-          {id: 4, name: '4', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-        ]
-      },
-      {
-        id: 2,
-        name: 'В работе',
-        color: '#92e8c7',
-        order: 2,
-        todos: [
-          {id: 5, name: '5', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-        ]
-      },
-      {
-        id: 3,
-        name: 'Завершено',
-        color: '#e8dd92',
-        order: 3,
-        todos: [
-          {id: 6, name: '6', description: 'sdasda', complitionDate: new Date('11.11.2024'), status: false},
-        ]
-      }
+  const data : JSONData[] = JSON.parse(localStorage.getItem("data") || '""')
+  
+  let normalizedData : CanvasColumn[] = []
+  if (data) {
+    normalizedData = normalizeDate(data)
+  }
+
+  const [columns, setColumns] = useState<CanvasColumn[]>(normalizedData)
+
+  const [newTodos, setNewTodos] = useState<CanvasColumn>({
+    id: 0,
+    color: 'white',
+    name: 'default',
+    order: 0,
+    todos: [
+      {id: 1, complitionDate: new Date(), description: '', name: '', status: false}
     ]
-  )
+  })
+
   const [currentTodo, setCurrentTodo] = useState<Todo>(
     {
       complitionDate: new Date, 
@@ -56,13 +42,14 @@ function App() {
       status: false,
     }
   )
+
   const [currentColumn, setCurrentColumn] = useState<CanvasColumn>(
     {
       color: '',
       id: 0,
       name: '',
       order: 0,
-      todos: []
+      todos: [],
     }
   )
 
@@ -74,10 +61,12 @@ function App() {
     todos: [],
   })
 
+  const [isDragTodo, setIsDragTodo] = useState<boolean>(false)
+  const [isDragColumn, setIsDragColumn] = useState<boolean>(false)
+
   const handleAddColumnButton = () => {
     const newArray = columns
-    newArray.push(columnForm)
-    console.log(columns);
+    newArray.push({...columnForm, id: Date.now(), order: newArray.length + 1, todos: []})
     setColumns(newArray)
     setColumns(columns.map((c) => {
       return c
@@ -91,140 +80,210 @@ function App() {
   }
 
   const handleAddTodoButton = (columnId: number) => {
-    const foundColumn = columns.find( (column) => columnId === column.id  )
-    setColumns(
-      columns.map((column) => {
-        const todoArray = column.todos
-        if (column.id === foundColumn?.id) {
-          todoArray.push({
-            id: Date.now(),
-            complitionDate: new Date(),
-            description: '',
-            name: '',
-            status: false,
-          })
-        }
-        return {
-          ...column,
-          todos: todoArray,
-        }
+    if (columnId === 0) {
+      const updatedColumn = newTodos
+      updatedColumn.todos.push({
+        id: Date.now(),
+        complitionDate: new Date(),
+        description: '',
+        name: '',
+        status: false,
       })
-    )
+      setNewTodos(updatedColumn)
+      const updatedTodos = newTodos.todos.map((c) => {
+        return c
+      })
+      setNewTodos({
+        ...newTodos,
+        todos: updatedTodos,
+      })
+    } else {
+      const foundColumn = columns.find( (column) => columnId === column.id  )
+      setColumns(
+        columns.map((column) => {
+          const todoArray = column.todos
+          if (column.id === foundColumn?.id) {
+            todoArray.push({
+              id: Date.now(),
+              complitionDate: new Date(),
+              description: '',
+              name: '',
+              status: false,
+            })
+          }
+          return {
+            ...column,
+            todos: todoArray,
+          }
+        })
+      )
+    }
   }
 
   const handleDeleteTodoButton = (todoId: number) => setColumns(
-    columns.map( (column) => {
+    columns.map((column) => {
       const todoArray = column.todos.filter((todo) => todo.id !== todoId)
       return {
         ...column,
-        todos: todoArray
+        todos: todoArray,
       }
     })
   )
 
-  const handleNameChange = (value: string|null, id: number) => setColumns(
-    columns.map( (column) => {
+  const handleNameChange = (value: string|null, id: number, isNewTodo: boolean | undefined) => setColumns(
+    columns.map((column) => {
       return {
         ...column,
         todos: column.todos.map((todo) => {
           (id === todo.id) ? todo.name = value : todo.name
           return todo
-        })
+        }),
       }
     })
   )
 
   const handleDescriptionChange = (value: string|null, id: number) => setColumns(
-    columns.map( (column) => {
+    columns.map((column) => {
       return {
         ...column,
         todos: column.todos.map((todo) => {
           (id === todo.id) ? todo.description = value : todo.description
           return todo
-        })
+        }),
       }
     })
   )
 
   const handleStatusChange = (e: any, id: number) => setColumns(
-    columns.map( (column) => {
+    columns.map((column) => {
       return {
         ...column,
         todos: column.todos.map((todo) => {
           (id === todo.id) ? todo.status = e.target.checked : todo.status
           return todo
-        })
+        }),
       }
     })
   )
   
-  const handleDateChange = (value: Date|null, id: number) => setColumns(
-    columns.map( (column) => {
+  const handleDateChange = (value: Date | null, id: number) => setColumns(
+    columns.map((column) => {
       return {
         ...column,
         todos: column.todos.map((todo) => {
-          (id === todo.id) ? todo.complitionDate = value : todo.complitionDate
+          (id === todo.id && value) ? todo.complitionDate = value : todo.complitionDate
           return todo
-        })
+        }),
       }
     })
   )
    
-  function onDragOverTodoHandler(e: DragEvent<HTMLDivElement>): void {
+  function onDragStartColumnHandler(e: DragEvent<HTMLDivElement>, column: CanvasColumn) {
+    setCurrentColumn(column)
+    setIsDragColumn(true)
+    setIsDragTodo(false)
+  }
+
+  function onDragOverColumnHandler(e: DragEvent<HTMLDivElement>): void {
     e.preventDefault()
+  }
+
+  function onDropColumnHandler(e: DragEvent<HTMLDivElement>, column: CanvasColumn): void {
+    if (isDragColumn) {
+      const currentIndex = columns.indexOf(currentColumn)
+      const dropIndex = columns.indexOf(column)
+      columns.splice(dropIndex, 1, currentColumn)
+      columns.splice(currentIndex, 1, column)
+      setColumns(columns.map((c) => {
+        return c
+      }))
+    }
   }
   
   function onDragStartTodoHandler(e: DragEvent<HTMLDivElement>, column: CanvasColumn, todo: Todo): void {
     setCurrentColumn(column)
     setCurrentTodo(todo)
-    console.log(todo);
+    setIsDragTodo(true)
+    setIsDragColumn(false)
+  }
+
+  function onDragOverTodoHandler(e: DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
   }
  
   function onDropTodoHandler(e: DragEvent<HTMLDivElement>, column: CanvasColumn, todo: Todo): void {
-    console.log('drop on todo');
     e.preventDefault()
     e.stopPropagation()
-    const currentIndex = currentColumn.todos.indexOf(currentTodo)
-    currentColumn.todos.splice(currentIndex, 1)
-    const dropIndex = column.todos.indexOf(todo)
-    column.todos.splice(dropIndex + 1, 0, currentTodo)
-    setColumns(columns.map((c) => {
-      if (c.id === column.id) {
-        return column
-      }
-      if (c.id === currentColumn.id) {
-        return currentColumn
-      }
-      return c
-    }))
-    console.log(todo);
+    if (isDragTodo) {
+      const currentIndex = currentColumn.todos.indexOf(currentTodo)
+      const dropIndex = column.todos.indexOf(todo)
+      column.todos.splice(dropIndex, 1, currentTodo)
+      currentColumn.todos.splice(currentIndex, 1, todo)
+      setColumns(columns.map((c) => {
+        if (c.id === column.id) {
+          return column
+        }
+        if (c.id === currentColumn.id) {
+          return currentColumn
+        }
+        return c
+      }))
+    }
   }
 
   function onDropTodoToColumnHandler(e: DragEvent<HTMLDivElement>, column: CanvasColumn) : void {
-    console.log('drop on column');
     e.preventDefault()
-    column.todos.push(currentTodo)
-    const currentIndex = currentColumn.todos.indexOf(currentTodo)
-    currentColumn.todos.splice(currentIndex, 1)
-    setColumns(columns.map((c) => {
-      if (c.id === column.id) {
-        return column
-      }
-      if (c.id === currentColumn.id) {
-        return currentColumn
-      }
-      return c
-    }))
+    if (isDragTodo) {
+      column.todos.push(currentTodo)
+      const currentIndex = currentColumn.todos.indexOf(currentTodo)
+      currentColumn.todos.splice(currentIndex, 1)
+      setColumns(columns.map((c) => {
+        if (c.id === column.id) {
+          return column
+        }
+        if (c.id === currentColumn.id) {
+          return currentColumn
+        }
+        return c
+      }))
+    }
+  }
+
+  function handleSaveButton(): void {
+    localStorage.setItem('data', JSON.stringify(columns))
   }
 
   return (
     <>
       <Layout 
-        // direction="row" 
+        direction="row" 
         style={{}}
       >
         {columns.map((column) => 
-          <Layout key={column.id} flex={1} style={{backgroundColor: column.color}}>
+          <Layout 
+            key={column.id} 
+            flex={1} 
+            style={{backgroundColor: column.color}} 
+            direction='column'
+          >
+            <Card
+              style={{
+                padding: 20, 
+                display: 'flex',
+                flexDirection: 'column',
+                width: 240,
+                height: 54,
+              }}
+              draggable={true}
+              onDragStart={(e) => onDragStartColumnHandler(e, column)}
+              onDrop={(e) => onDropColumnHandler(e, column)}
+              onDragOver={(e) => onDragOverColumnHandler(e)}
+            >
+              <Layout style={{justifyContent: 'flex-end'}}>
+                <IconHamburger size='m' style={{ marginBottom: 6, marginRight: 70}}/>
+                <IconClose size='s' style={{ marginBottom: 6} } onClick={(e) => handleDeleteColumnButton(e, column.id)}/>
+              </Layout>
+            </Card>
             <Card 
               style={{
                 padding: 20, 
@@ -236,7 +295,6 @@ function App() {
               onDrop={(e) => onDropTodoToColumnHandler(e, column)}
               onDragOver={(e) => onDragOverTodoHandler(e)}
             > 
-              <IconClose style={{alignSelf: 'flex-end', marginBottom: 6}} onClick={(e) => handleDeleteColumnButton(e, column.id)}/>
               <Text view="primary" size="m" lineHeight="m" style={{textAlign: 'center', marginBottom: 10}}>
                 { column.name }
               </Text>
@@ -259,8 +317,7 @@ function App() {
                     backgroundColor: !todo.status ? "white" : "grey",
                     display: 'flex',
                     flexDirection: 'column',
-                  }}
-                  
+                  }} 
                 >
                   <IconClose size='s' style={{alignSelf: 'flex-end', marginBottom: 6}} onClick={() => handleDeleteTodoButton(todo.id)}/>
                   <TextField 
@@ -322,11 +379,73 @@ function App() {
               value={columnForm.color} 
               onChange={(e) => setColumnForm({...columnForm, color: e.target.value})} 
             />
-            <Button label="Добавить стадию" onClick={() => handleAddColumnButton()}/>
+            <Button style={{marginBottom: 8}} label="Добавить стадию" onClick={() => handleAddColumnButton()}/>
+            <Button label="Сохранить" onClick={() => handleSaveButton()}/>
+    
+            {newTodos.todos.map( (newTodo) => 
+              <Card 
+                draggable={true}
+                onDragStart={(e) => onDragStartTodoHandler(e, newTodos, newTodo)}
+                key={newTodo.id} 
+                verticalSpace="m" 
+                horizontalSpace="m" 
+                form="round" 
+                shadow={false} 
+                border={true}
+                style={{
+                  width: 200,
+                  height: 200,
+                  marginBottom: 10, 
+                  backgroundColor: !newTodo.status ? "white" : "grey",
+                  display: 'flex',
+                  flexDirection: 'column',
+                }} 
+              >
+                <IconClose size='s' style={{alignSelf: 'flex-end', marginBottom: 6}} onClick={() => handleDeleteTodoButton(newTodo.id)}/>
+                <TextField 
+                  size='xs'
+                  onChange={(value) => handleNameChange(value, newTodo.id)}
+                  value={newTodo.name}
+                  type="text"
+                  placeholder="Заголовок"
+                  style={{marginBottom: 8}}
+                  disabled={newTodo.status}
+                />
+                <TextField
+                  size='xs'
+                  type="textarea"
+                  placeholder="Описание"
+                  rows={2}
+                  cols={30}
+                  value={newTodo.description}
+                  onChange={(value) => handleDescriptionChange(value, newTodo.id)}
+                  style={{marginBottom: 8}}
+                  disabled={newTodo.status}
+                />
+                <DatePicker 
+                  size='xs'
+                  type="date"
+                  value={newTodo.complitionDate}
+                  onChange={(date) => handleDateChange(date, newTodo.id)} 
+                  style={{marginBottom: 8}}
+                  disabled={newTodo.status}
+                />
+                <Checkbox 
+                  size='xs'
+                  label="Выполнено" 
+                  checked={newTodo.status}
+                  onChange={(e) => handleStatusChange(e, newTodo.id)}
+                />
+              </Card>
+            )}
+
+            <Button 
+              label="Добавить задачу" 
+              onClick={() => handleAddTodoButton(newTodos.id)}
+            />
           </Layout>
         </Card>
       </Layout>
-      
     </>
   )
 }
