@@ -1,16 +1,11 @@
 import { DragEvent, useState } from 'react'
 import { Layout } from '@consta/uikit/Layout'
-import { Text } from '@consta/uikit/Text'
 import { CanvasColumn } from './../models/CanvasColumn'
-import { Card } from '@consta/uikit/Card'
-import { TextField } from '@consta/uikit/TextField'
-import { DatePicker } from '@consta/uikit/DatePicker'
-import { Checkbox } from '@consta/uikit/Checkbox'
-import { Button } from '@consta/uikit/Button'
-import { IconClose } from '@consta/icons/IconClose'
-import { IconHamburger } from '@consta/icons/IconHamburger'
 import { Todo } from './../models/Todo'
 import { JSONData, normalizeDate } from './../helpers/normalizeDate'
+import DataContext from './Context'
+import ColumnComponent from './Column'
+import ControlPanel from './ControlPanel'
 
 function AppLayout() {
   const data : JSONData[] = JSON.parse(localStorage.getItem("data") || '""')
@@ -19,7 +14,7 @@ function AppLayout() {
   if (data) {
     normalizedData = normalizeDate(data)
   }
-
+  
   const [columns, setColumns] = useState<CanvasColumn[]>(normalizedData)
 
   const [newTodos, setNewTodos] = useState<CanvasColumn>({
@@ -297,214 +292,37 @@ function AppLayout() {
     localStorage.setItem('data', JSON.stringify(columns))
   }
 
+  const value = {
+    onDragStartTodoHandler,
+    onDragOverTodoHandler,
+    onDropTodoHandler,
+    handleDateChange,
+    handleDescriptionChange,
+    handleNameChange,
+    handleDeleteTodoButton,
+    handleStatusChange,
+    onDragStartColumnHandler,
+    onDropColumnHandler,
+    onDragOverColumnHandler,
+    handleDeleteColumnButton,
+    onDropTodoToColumnHandler,
+    handleAddTodoButton,
+    handleSaveButton,
+    columnForm,
+    setColumnForm,
+    handleAddColumnButton,
+    newTodos
+  }
+
   return (
-    <Layout direction="row" style={{marginLeft: 10}}>
-      {columns.map((column) => 
-        <Layout 
-          key={column.id} 
-          flex={1} 
-          style={{backgroundColor: column.color}} 
-          direction='column'
-        >
-          <Card
-            style={{
-              padding: 20, 
-              display: 'flex',
-              flexDirection: 'column',
-              width: 240,
-              height: 54,
-            }}
-            draggable={true}
-            onDragStart={() => onDragStartColumnHandler(column)}
-            onDrop={() => onDropColumnHandler(column)}
-            onDragOver={(e) => onDragOverColumnHandler(e)}
-          >
-            <Layout style={{justifyContent: 'flex-end'}}>
-              <IconHamburger size='m' style={{ marginBottom: 6, marginRight: 70}}/>
-              <IconClose 
-                size='s' 
-                style={{ marginBottom: 6} } 
-                onClick={() => handleDeleteColumnButton(column.id)}
-              />
-            </Layout>
-          </Card>
-          <Card 
-            style={{
-              padding: 20, 
-              display: 'flex',
-              flexDirection: 'column',
-              width: 240,
-              height: 896,
-            }}
-            onDrop={(e) => onDropTodoToColumnHandler(e, column)}
-            onDragOver={(e) => onDragOverTodoHandler(e)}
-          > 
-            <Text view="primary" size="m" lineHeight="m" style={{textAlign: 'center', marginBottom: 10}}>
-              { column.name }
-            </Text>
-            {column.todos.map((todo) =>
-              <Card 
-                draggable={true}
-                onDrop={(e) => onDropTodoHandler(e, column, todo)}
-                onDragStart={() => onDragStartTodoHandler(column, todo)}
-                onDragOver={(e) => onDragOverTodoHandler(e)}
-                key={todo.id} 
-                verticalSpace="m" 
-                horizontalSpace="m" 
-                form="round" 
-                shadow={false} 
-                border={true}
-                style={{
-                  width: 200,
-                  height: 200,
-                  marginBottom: 10, 
-                  backgroundColor: !todo.status ? "white" : "grey",
-                  display: 'flex',
-                  flexDirection: 'column',
-                }} 
-              >
-                <IconClose 
-                  size='s' 
-                  style={{alignSelf: 'flex-end', marginBottom: 6}} 
-                  onClick={() => handleDeleteTodoButton(todo.id, false)}
-                />
-                <TextField 
-                  size='xs'
-                  onChange={(value) => handleNameChange(value, todo.id, false)}
-                  value={todo.name}
-                  type="text"
-                  placeholder="Заголовок"
-                  style={{marginBottom: 8}}
-                  disabled={todo.status}
-                />
-                <TextField
-                  size='xs'
-                  type="textarea"
-                  placeholder="Описание"
-                  rows={2}
-                  cols={30}
-                  value={todo.description}
-                  onChange={(value) => handleDescriptionChange(value, todo.id, false)}
-                  style={{marginBottom: 8}}
-                  disabled={todo.status}
-                />
-                <DatePicker 
-                  size='xs'
-                  type="date"
-                  value={todo.complitionDate}
-                  onChange={(date) => handleDateChange(date, todo.id, false)} 
-                  style={{marginBottom: 8}}
-                  disabled={todo.status}
-                />
-                <Checkbox 
-                  size='xs'
-                  label="Выполнено" 
-                  checked={todo.status}
-                  onChange={(e) => handleStatusChange(e, todo.id, false)}
-                />
-              </Card>
-            )}
-            <Button label="Добавить задачу" onClick={() => handleAddTodoButton(column.id)}/>
-          </Card>
-        </Layout>
-      )}    
-      <Card 
-        style={{
-          padding: 20, 
-          display: 'flex',
-          flexDirection: 'column',
-          width: 240,
-          height: 950,
-        }}
-        verticalSpace="m" 
-        horizontalSpace="m" >
-        <Layout direction='column' style={{alignItems: 'center', justifyContent: 'center'}}>
-          <Text size="xl" style={{marginBottom: 8}}>Создание стадии</Text>
-          <Text style={{marginBottom: 8, alignSelf: 'start'}}>Название стадии</Text>
-          <TextField 
-            size='s'
-            onChange={(value) => setColumnForm({...columnForm, name: value})}
-            value={columnForm.name}
-            type="text"
-            placeholder="Новая стадия"
-            style={{marginBottom: 8}}
-          />
-          <Text style={{marginBottom: 8, alignSelf: 'start'}}>Выбирете цвет</Text>
-          <input 
-            style={{marginBottom: 8, width: 220}}
-            type="color"
-            value={columnForm.color} 
-            onChange={(e) => setColumnForm({...columnForm, color: e.target.value})} 
-          />
-          <Button style={{marginBottom: 8}} label="Добавить стадию" onClick={() => handleAddColumnButton()}/>
-          {newTodos.todos.map( (newTodo) => 
-            <Card 
-              draggable={true}
-              onDragStart={() => onDragStartTodoHandler(newTodos, newTodo)}
-              key={newTodo.id} 
-              verticalSpace="m" 
-              horizontalSpace="m" 
-              form="round" 
-              shadow={false} 
-              border={true}
-              style={{
-                width: 200,
-                height: 200,
-                marginBottom: 10, 
-                backgroundColor: !newTodo.status ? "white" : "grey",
-                display: 'flex',
-                flexDirection: 'column',
-              }} 
-            >
-              <IconClose 
-                size='s' 
-                style={{alignSelf: 'flex-end', marginBottom: 6}} 
-                onClick={() => handleDeleteTodoButton(newTodo.id, true)}
-              />
-              <TextField 
-                size='xs'
-                onChange={(value) => handleNameChange(value, newTodo.id, true)}
-                value={newTodo.name}
-                type="text"
-                placeholder="Заголовок"
-                style={{marginBottom: 8}}
-                disabled={newTodo.status}
-              />
-              <TextField
-                size='xs'
-                type="textarea"
-                placeholder="Описание"
-                rows={2}
-                cols={30}
-                value={newTodo.description}
-                onChange={(value) => handleDescriptionChange(value, newTodo.id, true)}
-                style={{marginBottom: 8}}
-                disabled={newTodo.status}
-              />
-              <DatePicker 
-                size='xs'
-                type="date"
-                value={newTodo.complitionDate}
-                onChange={(date) => handleDateChange(date, newTodo.id, true)} 
-                style={{marginBottom: 8}}
-                disabled={newTodo.status}
-              />
-              <Checkbox 
-                size='xs'
-                label="Выполнено" 
-                checked={newTodo.status}
-                onChange={(e) => handleStatusChange(e, newTodo.id, true)}
-              />
-            </Card>
-          )}
-          <Button 
-            label="Добавить задачу" 
-            onClick={() => handleAddTodoButton(newTodos.id)}
-          />
-          <Button style={{marginTop: 8}} label="Сохранить" onClick={() => handleSaveButton()}/>
-        </Layout>
-      </Card>
-    </Layout>
+    <DataContext.Provider value={value}>
+      <Layout direction="row" style={{marginLeft: 10}}>
+        {columns.map((column) => 
+          <ColumnComponent column={column}/>
+        )}    
+        <ControlPanel />
+      </Layout>
+    </DataContext.Provider>
   )
 }
 
